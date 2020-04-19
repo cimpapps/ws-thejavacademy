@@ -1,6 +1,8 @@
 <html>
 <head>
     <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.4.1/jquery.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/sockjs-client/1.4.0/sockjs.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/stomp.js/2.3.3/stomp.js"></script>
 </head>
 <body>
 <button onclick="startWs()">
@@ -14,30 +16,27 @@
 </ul>
 <script>
     var s = new Date().getTime();
-    var ws = new WebSocket("ws://localhost:8080/questions");
-    ws.onopen = function () {
-        ws.send(s + ": Hello, here I am!");
-    };
+    var ws = new SockJS("/questions");
+    var stompClient = Stomp.over(ws);
+    stompClient.connect({}, function (frame) {
+        stompClient.subscribe("/topic/questions", function (message) {
+            console.log(message);
+            $("#chat").append('<li>' + message + '</li>');
 
-    ws.onmessage = function (event) {
-        console.log(event.data);
-        $("#chat").append('<li>' + event.data + '</li>');
-    };
-
-    ws.onclose = function (event) {
-        console.log('connection closed ' + event.code);
-        ws = new WebSocket()
-    };
+        });
+    }, function (err) {
+        console.log('STOMP ERROR ' + err);
+    });
 
     $("#textarea").keypress(function (e) {
         if(e.which == 13 && !e.shiftKey) {
-            $(this).closest("form").submit();
+            startWs();
             e.preventDefault();
         }
     });
 
     function startWs() {
-        ws.send(s + ": " + $("#textarea").val());
+        stompClient.send("/topic/questions", {}, s + ": " + $("#textarea").val());
     }
 
 
